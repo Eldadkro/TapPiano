@@ -1,0 +1,15 @@
+E:\Open-source\TapPiano\TapPiano\bin\Debug\TapPiano.exe.config
+E:\Open-source\TapPiano\TapPiano\bin\Debug\TapPiano.exe
+E:\Open-source\TapPiano\TapPiano\bin\Debug\TapPiano.pdb
+E:\Open-source\TapPiano\TapPiano\bin\Debug\Windows.winmd
+E:\Open-source\TapPiano\TapPiano\obj\Debug\TapPiano.csproj.AssemblyReference.cache
+E:\Open-source\TapPiano\TapPiano\obj\Debug\TapPiano.csproj.SuggestedBindingRedirects.cache
+E:\Open-source\TapPiano\TapPiano\obj\Debug\TapPiano.Properties.Resources.resources
+E:\Open-source\TapPiano\TapPiano\obj\Debug\TapPiano.csproj.GenerateResource.cache
+E:\Open-source\TapPiano\TapPiano\obj\Debug\TapPiano.csproj.CoreCompileInputs.cache
+E:\Open-source\TapPiano\TapPiano\obj\Debug\TapPiano.csproj.CopyComplete
+E:\Open-source\TapPiano\TapPiano\obj\Debug\TapPiano.exe
+E:\Open-source\TapPiano\TapPiano\obj\Debug\TapPiano.pdb
+E:\Open-source\TapPiano\TapPiano\bin\Debug\TAPWin.dll
+E:\Open-source\TapPiano\TapPiano\bin\Debug\TAPWin.pdb
+E:\Open-source\TapPiano\TapPiano\obj\Debug\TapPiano.Form1.resources
