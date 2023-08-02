@@ -8,12 +8,12 @@ namespace TapPiano
 {
     internal class WavBuilder
     {
-
+        //complete class that gets short[] of data and Assemble a .WAV file in memory
         public WavBuilder()
         { }
 
     }
-    internal class WaveHeader
+    public class WaveHeader
     {
         private const string FILE_TYPE_ID = "RIFF";
         private const string MEDIA_TYPE_ID = "WAVE";
@@ -40,7 +40,7 @@ namespace TapPiano
         }
     }
 
-    internal class FormatChunk
+    public class FormatChunk
     {
         private ushort _bitsPerSample;
         private ushort _channels;
@@ -110,7 +110,6 @@ namespace TapPiano
             return (UInt32)GetBytes().Length;
         }
 
-
     }
 
 
@@ -164,25 +163,39 @@ namespace TapPiano
 
     }
 
-    public class SineGenerator
+    public interface IWave
     {
+        // interface for common wave methods to use generelized wave
+
+        short[] generateData();
+        UInt16 period {  get; }
+        
+    }
+
+    public class SineGenerator:IWave
+    {
+
+        //Basic osolating Sine Wave
+        // used to produce a simple wave 
         private readonly double _frequency;
-        private readonly UInt32 _sampleRate;
+        private const UInt32 _sampleRate = 2;
         private readonly UInt16 _secondsInLength;
         private short[] _dataBuffer;
 
-        public short[] Data { get { return _dataBuffer; } }
 
         public SineGenerator(double frequency,
            UInt32 sampleRate, UInt16 secondsInLength)
         {
             _frequency = frequency;
-            _sampleRate = sampleRate;
             _secondsInLength = secondsInLength;
-            GenerateData();
         }
 
-        private void GenerateData()
+        public UInt16 period
+        {
+            get { return _secondsInLength; }
+        }
+
+        public short[] generateData()
         {
             uint bufferSize = _sampleRate * _secondsInLength;
             _dataBuffer = new short[bufferSize];
@@ -197,6 +210,56 @@ namespace TapPiano
                 _dataBuffer[index] = Convert.ToInt16(amplitude *
                    Math.Sin(timePeriod * index));
             }
+            return _dataBuffer;
         }
     }
+
+    public class CompoundWave : IWave
+    {
+        //class that represent a compound wave created from super positioning of waves 
+        //to create complex sounds with complicated tember
+        private const UInt32 _sampleRate = 2;
+        private readonly UInt16 _secondsInLength;
+        private IWave[] waves;
+        private short[] _dataBuffer;
+
+        private void superPosition(short[] wav1)
+        {
+            for (int i = 0; i < _dataBuffer.Length; i++)
+                _dataBuffer[i] += wav1[i % wav1.Length];
+        }
+
+        public CompoundWave(IWave[] waves)
+        {
+            UInt16 total_period = 1;
+            this.waves = waves;
+            foreach(IWave wav in waves)
+            {
+                total_period *= wav.period;
+            }
+            _secondsInLength = total_period;
+            _dataBuffer = new short[_secondsInLength];
+            for(int i=0;i<_secondsInLength; i++ )
+                _dataBuffer[i] = 0;
+        }
+
+        public UInt16 period
+        {
+            get { return _secondsInLength; }
+        }
+
+
+        public short[] generateData()
+        {
+            foreach (IWave wav in waves)
+            {
+                short[] data = wav.generateData();
+                superPosition(data);
+            }
+            return _dataBuffer;
+        }
+
+    }
+
+
 }
