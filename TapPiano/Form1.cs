@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Media;
+using System.IO;
 using TAPWin;
 
 
@@ -15,10 +16,10 @@ namespace TapPiano
 {
     public partial class Form1 : Form
     {
+        private static SoundPlayer player;
         private const int TOTAL_WAVES = 31;
         private const int NUM_OF_NOTES = 5;
-        private const double BASE_FREQ = 440;
-        private const uint SAMPLE_RATE = 16;
+        private const double BASE_FREQ = 100;
         private IWave[] waves;
         public Form1()
         {
@@ -30,7 +31,14 @@ namespace TapPiano
         private void IntializedTap()
         {
             TAPManager.Instance.OnTapped += this.OnTapped;
+            TAPManager.Instance.OnTapConnected += this.OnTapConnected;
+            TAPManager.Instance.SetDefaultInputMode(TAPInputMode.Controller(), true);
+            TAPManager.Instance.Start();
+        }
 
+        private void OnTapConnected(string identifier, string name, int fw)
+        {
+            this.log(identifier + " connected. (" + name + ", fw " + fw.ToString() + ")");
         }
 
         private void OnTapped(string identifier, int tapcode)
@@ -38,8 +46,19 @@ namespace TapPiano
             this.log(identifier + " tapped " + tapcode.ToString());
             IWave wave = waves[tapcode];
             short[] data = wave.generateData();
-
-            SoundPlayer player;
+            WaveHeader header = new WaveHeader();
+            FormatChunk format = new FormatChunk();
+            DataChunk data_chunk = new DataChunk();
+            List<Byte> tempBytes = new List<byte>();
+            data_chunk.AddSampleData(data, data);
+            header.FileLength += format.Length() + data_chunk.Length();
+            tempBytes.AddRange(header.GetBytes());
+            tempBytes.AddRange(format.GetBytes());
+            tempBytes.AddRange(data_chunk.GetBytes());
+            Byte[] bytes = tempBytes.ToArray();
+            player = new SoundPlayer(new MemoryStream(bytes));
+            player.PlayLooping();
+            
 
         }
 
@@ -49,7 +68,7 @@ namespace TapPiano
             // as it requires to implement at least backtracking algorithm that by using DFS finds the combinations 
             // doing it like I did is a little bit less readable but it is easy to digest
             //initialize the sound profile for all fingures and acords 
-            waves = new IWave[TOTAL_WAVES];
+            waves = new IWave[TOTAL_WAVES + 1];
             //base (lowest) note
             double freq = BASE_FREQ;
             double step = Math.Pow(2, 1.0 / 5.0);
@@ -60,7 +79,7 @@ namespace TapPiano
 
                 //TODO fix period length to lower then sec (maybe nano or mil
 
-                waves[index] = new SineGenerator(freq, SAMPLE_RATE, (UInt16)(1.0 / BASE_FREQ));
+                waves[index] = new SineGenerator(freq, (ulong)(1.0 / BASE_FREQ * 1E6));
                 index = index << 1;
                 freq *= step;
             }
@@ -69,7 +88,7 @@ namespace TapPiano
             {
                 for (int j = i + 1; j < NUM_OF_NOTES; j++)
                 {
-                    index = 1 << i + 1 << j;
+                    index = (1 << i) | (1 << j);
                     waves[index] = new CompoundWave(new IWave[] { waves[1 << i], waves[1 << j] });
                 }
             }
@@ -80,7 +99,7 @@ namespace TapPiano
                 {
                     for (int i3 = i2 + 1; i3 < NUM_OF_NOTES; i3++)
                     {
-                        index = 1 << i1 + 1 << i2 + 1 << i3;
+                        index = (1 << i1)| (1 << i2) | (1 << i3);
                         waves[index] = new CompoundWave(new IWave[] { waves[1 << i1], waves[1 << i2], waves[1 << i3] });
                     }
                 }
@@ -99,7 +118,7 @@ namespace TapPiano
                 index = 0;
                 foreach (int ind in comb)
                     index |= (1 << ind);
-                waves[index] = new CompoundWave(new IWave[] { waves[comb[0]], waves[comb[1]], waves[comb[2]], waves[comb[3]], waves[comb[4]] });
+                waves[index] = new CompoundWave(new IWave[] { waves[1<<comb[0]], waves[1 << comb[1]], waves[1 << comb[2]], waves[1 << comb[3]] });
             }
 
             //acord of five
@@ -107,13 +126,13 @@ namespace TapPiano
             waves[index] = new CompoundWave(new IWave[] { waves[1], waves[2], waves[4], waves[8], waves[16] });
 
 
+
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
             this.log("start sound");
-            SoundPlayer player = new SoundPlayer(@"E:\Open-source\TapPiano\TapPiano\sounds/C_s.wav");
-            player.Play();
+            OnTapped("test", 1);
 
         }
 
@@ -129,6 +148,19 @@ namespace TapPiano
 
         private void textBox1_TextChanged(object sender, EventArgs e)
         {
+
+        }
+
+        private void stopSound_click(object sender, EventArgs e)
+        {
+            player.Stop();
+        }
+
+        private void run_Click(object sender, EventArgs e)
+        {
+            string type = textBox2.Text;
+            int code = int.Parse(type);
+            OnTapped("run ", code);
 
         }
     }

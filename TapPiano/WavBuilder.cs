@@ -8,9 +8,7 @@ namespace TapPiano
 {
     internal class WavBuilder
     {
-        //complete class that gets short[] of data and Assemble a .WAV file in memory
-        public WavBuilder()
-        { }
+
 
     }
     public class WaveHeader
@@ -44,7 +42,7 @@ namespace TapPiano
     {
         private ushort _bitsPerSample;
         private ushort _channels;
-        private uint _frequency;
+        private uint sample_frequency;
         private const string CHUNK_ID = "fmt ";
 
         public string ChunkId { get; private set; }
@@ -59,8 +57,8 @@ namespace TapPiano
 
         public UInt32 Frequency
         {
-            get { return _frequency; }
-            set { _frequency = value; RecalcBlockSizes(); }
+            get { return sample_frequency; }
+            set { sample_frequency = value; RecalcBlockSizes(); }
         }
 
         public UInt32 AverageBytesPerSec { get; private set; }
@@ -78,7 +76,7 @@ namespace TapPiano
             ChunkSize = 16;
             FormatTag = 1;       // MS PCM (Uncompressed wave file)
             Channels = 2;        // Default to stereo
-            Frequency = 44100;   // Default to 44100hz
+            sample_frequency = 44100 * 2;   // Default to 44100hz
             BitsPerSample = 16;  // Default to 16bits
             RecalcBlockSizes();
         }
@@ -86,7 +84,7 @@ namespace TapPiano
         private void RecalcBlockSizes()
         {
             BlockAlign = (UInt16)(_channels * (_bitsPerSample / 8));
-            AverageBytesPerSec = _frequency * BlockAlign;
+            AverageBytesPerSec = sample_frequency * BlockAlign;
         }
 
         public byte[] GetBytes()
@@ -168,36 +166,36 @@ namespace TapPiano
         // interface for common wave methods to use generelized wave
 
         short[] generateData();
-        UInt16 period {  get; }
-        
+        ulong period { get; }
+
     }
 
-    public class SineGenerator:IWave
+    public class SineGenerator : IWave
     {
 
         //Basic osolating Sine Wave
         // used to produce a simple wave 
-        private readonly double _frequency;
-        private const UInt32 _sampleRate = 2;
-        private readonly UInt16 _secondsInLength;
+        private readonly double _frequency; //Hz
+        private const UInt32 _sampleRate = 44100; // samples/sec
+        private readonly ulong _nsInLength; // ns
         private short[] _dataBuffer;
 
 
-        public SineGenerator(double frequency,
-           UInt32 sampleRate, UInt16 secondsInLength)
+        public SineGenerator(double frequency, ulong nsInLength)
         {
             _frequency = frequency;
-            _secondsInLength = secondsInLength;
+            _nsInLength = nsInLength;
+            data_gen();
         }
 
-        public UInt16 period
+        public ulong period
         {
-            get { return _secondsInLength; }
+            get { return _nsInLength; }
         }
 
-        public short[] generateData()
+        private void data_gen()
         {
-            uint bufferSize = _sampleRate * _secondsInLength;
+            ulong bufferSize = (ulong)((((double)(_sampleRate)) / 1E6) * _nsInLength); // (samples*1e6*sec)/(1*e6 *sec) = samples
             _dataBuffer = new short[bufferSize];
 
             int amplitude = 32760;
@@ -205,11 +203,16 @@ namespace TapPiano
             double timePeriod = (Math.PI * 2 * _frequency) /
                (_sampleRate);
 
-            for (uint index = 0; index < bufferSize - 1; index++)
+            for (ulong index = 0; index < bufferSize - 1; index++)
             {
                 _dataBuffer[index] = Convert.ToInt16(amplitude *
                    Math.Sin(timePeriod * index));
             }
+        }
+
+        public short[] generateData()
+        {
+
             return _dataBuffer;
         }
     }
@@ -218,8 +221,8 @@ namespace TapPiano
     {
         //class that represent a compound wave created from super positioning of waves 
         //to create complex sounds with complicated tember
-        private const UInt32 _sampleRate = 2;
-        private readonly UInt16 _secondsInLength;
+        private const ulong _sampleRate = 44100; //samples/sec
+        private readonly ulong _nsInLength; //ns
         private IWave[] waves;
         private short[] _dataBuffer;
 
@@ -229,33 +232,34 @@ namespace TapPiano
                 _dataBuffer[i] += wav1[i % wav1.Length];
         }
 
-        public CompoundWave(IWave[] waves)
+        public CompoundWave(IWave[] _waves)
         {
-            UInt16 total_period = 1;
-            this.waves = waves;
-            foreach(IWave wav in waves)
+            ulong total_period = 1;
+            this.waves = _waves;
+            foreach (IWave wav in waves)
             {
                 total_period *= wav.period;
             }
-            _secondsInLength = total_period;
-            _dataBuffer = new short[_secondsInLength];
-            for(int i=0;i<_secondsInLength; i++ )
+            _nsInLength = (uint)1E6;
+            ulong buffer_size = (ulong)((((double)(_sampleRate)) / 1E6) * _nsInLength);
+            _dataBuffer = new short[buffer_size];
+            for (int i = 0; i < _dataBuffer.Length; i++)
                 _dataBuffer[i] = 0;
-        }
-
-        public UInt16 period
-        {
-            get { return _secondsInLength; }
-        }
-
-
-        public short[] generateData()
-        {
             foreach (IWave wav in waves)
             {
                 short[] data = wav.generateData();
                 superPosition(data);
             }
+        }
+
+        public ulong period
+        {
+            get { return (ulong)_nsInLength; }
+        }
+
+
+        public short[] generateData()
+        {
             return _dataBuffer;
         }
 
