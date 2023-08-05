@@ -6,11 +6,12 @@ using System.Threading.Tasks;
 
 namespace TapPiano
 {
-    internal class WavBuilder
+    
+    public class consts
     {
-
-
+        public const uint samples = 41000;
     }
+
     public class WaveHeader
     {
         private const string FILE_TYPE_ID = "RIFF";
@@ -76,7 +77,7 @@ namespace TapPiano
             ChunkSize = 16;
             FormatTag = 1;       // MS PCM (Uncompressed wave file)
             Channels = 2;        // Default to stereo
-            sample_frequency = 44100 * 2;   // Default to 44100hz
+            sample_frequency = consts.samples;   // Default to 44100hz
             BitsPerSample = 16;  // Default to 16bits
             RecalcBlockSizes();
         }
@@ -156,7 +157,7 @@ namespace TapPiano
                 WaveData[index + 1] = rightBuffer[bufferOffset];
                 bufferOffset++;
             }
-            ChunkSize = (UInt32)WaveData.Length * 2;
+            ChunkSize = (UInt32)WaveData.Length;
         }
 
     }
@@ -176,7 +177,7 @@ namespace TapPiano
         //Basic osolating Sine Wave
         // used to produce a simple wave 
         private readonly double _frequency; //Hz
-        private const UInt32 _sampleRate = 44100; // samples/sec
+        private const UInt32 _sampleRate = consts.samples; // samples/sec
         private readonly ulong _nsInLength; // ns
         private short[] _dataBuffer;
 
@@ -221,15 +222,15 @@ namespace TapPiano
     {
         //class that represent a compound wave created from super positioning of waves 
         //to create complex sounds with complicated tember
-        private const ulong _sampleRate = 44100; //samples/sec
+        private const ulong _sampleRate = consts.samples; //samples/sec
         private readonly ulong _nsInLength; //ns
         private IWave[] waves;
         private short[] _dataBuffer;
 
         private void superPosition(short[] wav1)
         {
-            for (int i = 0; i < _dataBuffer.Length; i++)
-                _dataBuffer[i] += wav1[i % wav1.Length];
+            for (int i = 0; i < wav1.Length; i++)
+                _dataBuffer[i] += ((short)((short)wav1[i%wav1.Length]/((short)waves.Length)));
         }
 
         public CompoundWave(IWave[] _waves)
@@ -239,8 +240,9 @@ namespace TapPiano
             foreach (IWave wav in waves)
             {
                 total_period *= wav.period;
+                total_period = total_period < ((ulong)10E6) ? total_period : ((ulong)10E6);
             }
-            _nsInLength = (uint)1E6;
+            _nsInLength = total_period;
             ulong buffer_size = (ulong)((((double)(_sampleRate)) / 1E6) * _nsInLength);
             _dataBuffer = new short[buffer_size];
             for (int i = 0; i < _dataBuffer.Length; i++)
@@ -250,6 +252,10 @@ namespace TapPiano
                 short[] data = wav.generateData();
                 superPosition(data);
             }
+            //for(int i=0;i < _dataBuffer.Length; i++)
+            //{
+            //    _dataBuffer[i] /= ((short)waves.Length);
+            //}
         }
 
         public ulong period
